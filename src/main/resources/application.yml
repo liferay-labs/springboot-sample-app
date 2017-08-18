@@ -1,0 +1,9 @@
+server:
+  port: 9080
+
+spring:
+  application:
+    name: springboot-sample-app
+
+  profiles:
+    include: info

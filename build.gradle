@@ -1,0 +1,74 @@
+buildscript {
+    repositories {
+        mavenCentral()
+        jcenter()
+    }
+    dependencies {
+        classpath('org.springframework.boot:spring-boot-gradle-plugin:1.5.6.RELEASE')
+        classpath('se.transmode.gradle:gradle-docker:1.2')
+        classpath('org.ajoberstar:grgit:3.3')
+    }
+}
+
+apply plugin: 'java'
+apply plugin: 'eclipse'
+apply plugin: 'idea'
+apply plugin: 'org.springframework.boot'
+apply plugin: 'docker'
+
+// Organization under which Docker images are published
+group = 'rubenpulido'
+
+jar {
+    baseName = 'springboot-sample-app'
+    version =  '0.1.0'
+}
+
+import java.text.SimpleDateFormat
+
+def getBuildTime() {
+    def df = new SimpleDateFormat("yyyyMMddHHmm'Z'")
+    df.setTimeZone(TimeZone.getTimeZone("UTC"))
+    return df.format(new Date())
+}
+
+def buildTime = getBuildTime()
+
+import org.ajoberstar.grgit.Grgit
+
+task createVersionFile() << {
+    def file = new File("$projectDir/src/main/resources/application-info.properties")
+    file.createNewFile()
+    file.text =
+"""info.version=${jar.version}
+info.branch=${Grgit.open(dir: '.').branch.getCurrent().name}
+info.revision=${Grgit.open(dir: '.').head().id}
+info.buildtime=$buildTime
+"""
+}
+
+task buildDocker(type: Docker, dependsOn: build) {
+  applicationName = jar.baseName
+  tagVersion = "${jar.version}-${buildTime}"
+  push = true
+  dockerfile = file('Dockerfile')
+  doFirst {
+    copy {
+      from jar
+      into "${stageDir}/target"
+    }
+  }
+}
+
+repositories {
+    mavenCentral()
+}
+
+sourceCompatibility = 1.8
+targetCompatibility = 1.8
+
+dependencies {
+    compile("org.springframework.boot:spring-boot-starter-web")
+    compile("org.springframework.boot:spring-boot-starter-actuator")
+    testCompile("org.springframework.boot:spring-boot-starter-test")
+}
